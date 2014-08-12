@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:v8like-ios/v8like-ios.xcodeproj">
+   </FileRef>
+   <FileRef
+      location = "group:v8like-osx/v8like-osx.xcodeproj">
+   </FileRef>
+</Workspace>
