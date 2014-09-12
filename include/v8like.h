@@ -685,6 +685,25 @@ public:
 		void operator=(const AsciiValue&);
 	};
 
+public:
+	class V8EXPORT Value
+	{
+	private:
+		uint16_t* m_str;
+		int m_length;
+	public:
+		Value(Handle<v8::Value> value);
+		~Value();
+	public:
+		uint16_t* operator*() { return m_str; }
+		const uint16_t* operator*() const { return m_str; }
+		int length() const { return m_length; }
+	private:
+		// Disallow copying and assigning.
+		Value(const Value&);
+		void operator=(const Value&);
+	};
+
 	class V8EXPORT ExternalStringResourceBase
 	{
 	public:
@@ -744,7 +763,7 @@ public:
 
 public:
 	V8EXPORT static Local<String> Empty();
-	V8EXPORT static String* Cast(Value* value);
+    V8EXPORT static String* Cast(v8::Value* value);
 
 public:
 	V8EXPORT static Local<String> New(const char* data, int length = -1);
@@ -1317,6 +1336,48 @@ public:
 	V8EXPORT static RegExp* Cast(Value* value);
 ///public:
 ///	static JSClassRef GetJSClass();
+};
+
+/// v8::BooleanObject
+
+class V8EXPORT BooleanObject : public Object
+{
+	RTTI_DECLARE();
+public:
+	BooleanObject(JSContextRef js_ctx, bool value);
+	BooleanObject(JSContextRef js_ctx, JSObjectRef js_object);
+	virtual ~BooleanObject() {}
+public:
+	V8EXPORT static Local<Value> New(bool value);
+	V8EXPORT static BooleanObject* Cast(Value* value);
+};
+
+/// v8::NumberObject
+
+class V8EXPORT NumberObject : public Object
+{
+	RTTI_DECLARE();
+public:
+	NumberObject(JSContextRef js_ctx, double value);
+	NumberObject(JSContextRef js_ctx, JSObjectRef js_object);
+	virtual ~NumberObject() {}
+public:
+	V8EXPORT static Local<Value> New(double value);
+	V8EXPORT static NumberObject* Cast(Value* value);
+};
+
+/// v8::StringObject
+
+class V8EXPORT StringObject : public Object
+{
+	RTTI_DECLARE();
+public:
+	StringObject(JSContextRef js_ctx, Handle<String> value);
+	StringObject(JSContextRef js_ctx, JSObjectRef js_object);
+	virtual ~StringObject() {}
+public:
+	V8EXPORT static Local<Value> New(Handle<String> value);
+	V8EXPORT static StringObject* Cast(Value* value);
 };
 
 /// v8::External

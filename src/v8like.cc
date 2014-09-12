@@ -163,7 +163,7 @@ static void JSDebugPrintScriptStack(JSContextRef js_ctx)
 		JSStringGetUTF8CString(js_string, js_buffer, js_size);
 		printf("%s\n", js_buffer);
 		delete[] js_buffer; js_buffer = NULL;
-        JSStringRelease(js_string); js_string = NULL;
+		JSStringRelease(js_string); js_string = NULL;
 		JSStringRelease(js_name); js_name = NULL;
 	}
 }
@@ -976,7 +976,7 @@ uint32_t Uint32::Value() const
 
 /// v8::String::Utf8Value
 
-String::Utf8Value::Utf8Value(Handle<Value> value) : m_str(NULL), m_length(0)
+String::Utf8Value::Utf8Value(Handle<v8::Value> value) : m_str(NULL), m_length(0)
 {
 	JSValueRef js_exception = NULL;
 	JSContextRef js_ctx = Context::GetCurrentJSContext();
@@ -1008,7 +1008,7 @@ String::Utf8Value::~Utf8Value()
 
 /// v8::String::AsciiValue
 
-String::AsciiValue::AsciiValue(Handle<Value> value) : m_str(NULL), m_length(0)
+String::AsciiValue::AsciiValue(Handle<v8::Value> value) : m_str(NULL), m_length(0)
 {
 	JSValueRef js_exception = NULL;
 	JSContextRef js_ctx = Context::GetCurrentJSContext();
@@ -1036,6 +1036,40 @@ String::AsciiValue::~AsciiValue()
 	{
 		delete[] m_str; m_str = NULL;
 	}
+}
+
+/// v8::String::Value
+
+String::Value::Value(Handle<v8::Value> value) : m_str(NULL), m_length(0)
+{
+	// TODO
+///	JSValueRef js_exception = NULL;
+///	JSContextRef js_ctx = Context::GetCurrentJSContext();
+///	JSValueRef js_value = value->m_js_value;
+///	JSStringRef js_string = JSValueToStringCopy(js_ctx, js_value, &js_exception);
+///	if (!js_exception)
+///	{
+///		size_t size = JSStringGetMaximumUTF8CStringSize(js_string);
+///		m_str = new char[size];
+///		assert(m_str);
+///		if (m_str)
+///		{
+///			m_str[0] = 0;
+///			// NOTE: bytes_written includes the null-terminator byte
+///			size_t bytes_written = JSStringGetUTF8CString(js_string, m_str, size);
+///			m_length = (int)(bytes_written - 1);
+///		}
+///	}
+///	JSStringRelease(js_string); js_string = NULL;
+}
+
+String::Value::~Value()
+{
+	// TODO
+///	if (m_str)
+///	{
+///		delete[] m_str; m_str = NULL;
+///	}
 }
 
 /// v8::String
@@ -1209,7 +1243,7 @@ bool String::CanMakeExternal()
 	return String::New("");
 }
 
-/*static*/ String* String::Cast(Value* value)
+/*static*/ String* String::Cast(v8::Value* value)
 {
 	if (RTTI_IsKindOf(String, value))
 	{
@@ -1909,9 +1943,9 @@ bool Object::Set(Handle<Value> key, Handle<Value> value, PropertyAttribute attri
 		JSStringRef js_name = JSValueToStringCopy(js_ctx, key->m_js_value, &js_exception);
 		JSValueRef js_value = internal::ExportValue(value);
 		JSPropertyAttributes js_attrib = kJSPropertyAttributeNone;
-		if (attrib & PropertyAttribute::ReadOnly)   { js_attrib |= kJSPropertyAttributeReadOnly; }
-		if (attrib & PropertyAttribute::DontEnum)   { js_attrib |= kJSPropertyAttributeDontEnum; }
-		if (attrib & PropertyAttribute::DontDelete) { js_attrib |= kJSPropertyAttributeDontDelete; }
+		if (attrib & ReadOnly)   { js_attrib |= kJSPropertyAttributeReadOnly; }
+		if (attrib & DontEnum)   { js_attrib |= kJSPropertyAttributeDontEnum; }
+		if (attrib & DontDelete) { js_attrib |= kJSPropertyAttributeDontDelete; }
 		JSObjectSetProperty(js_ctx, m_js_object, js_name, js_value, js_attrib, &js_exception);
 		JSStringRelease(js_name); js_name = NULL;
 		if (js_exception)
@@ -1966,18 +2000,18 @@ PropertyAttribute Object::GetPropertyAttributes(Handle<Value> key)
 	JSValueRef js_writable     = JSObjectGetProperty(js_ctx, js_desc, internal::JSStringWrap("writable"    ), &js_exception);
 	JSValueRef js_enumerable   = JSObjectGetProperty(js_ctx, js_desc, internal::JSStringWrap("enumberable" ), &js_exception);
 	JSValueRef js_configurable = JSObjectGetProperty(js_ctx, js_desc, internal::JSStringWrap("configurable"), &js_exception);
-	int prop = PropertyAttribute::None;
+	int prop = None;
 	if (JSValueIsBoolean(js_ctx, js_writable) && !JSValueToBoolean(js_ctx, js_writable))
 	{
-		prop |= PropertyAttribute::ReadOnly;
+		prop |= ReadOnly;
 	}
 	if (JSValueIsBoolean(js_ctx, js_enumerable) && !JSValueToBoolean(js_ctx, js_enumerable))
 	{
-		prop |= PropertyAttribute::DontEnum;
+		prop |= DontEnum;
 	}
 	if (JSValueIsBoolean(js_ctx, js_configurable) && !JSValueToBoolean(js_ctx, js_configurable))
 	{
-		prop |= PropertyAttribute::DontDelete;
+		prop |= DontDelete;
 	}
 	return (PropertyAttribute) prop;
 }
@@ -3436,6 +3470,150 @@ RegExp::RegExp(JSContextRef js_ctx, JSObjectRef js_object)
 ///	return sm_js_class;
 ///}
 
+/// v8::BooleanObject
+
+RTTI_IMPLEMENT(v8::BooleanObject, v8::Object);
+
+BooleanObject::BooleanObject(JSContextRef js_ctx, bool value)
+{
+	// TODO
+	Object::AttachJSContextAndJSObject(js_ctx, JSObjectMake(js_ctx, Object::GetJSClass(), this));
+	assert(JSObjectGetPrivate(m_js_object) == NULL);
+	assert(JSValueIsObject(js_ctx, m_js_value));
+///	assert(JSValueIsBooleanObject(js_ctx, m_js_object));
+}
+
+BooleanObject::BooleanObject(JSContextRef js_ctx, JSObjectRef js_object)
+{
+	Object::AttachJSContextAndJSObject(js_ctx, js_object);
+	assert(JSObjectGetPrivate(m_js_object) == NULL);
+	assert(JSValueIsObject(js_ctx, m_js_value));
+///	assert(JSValueIsBooleanObject(js_ctx, m_js_object));
+}
+
+/*static*/ Local<Value> BooleanObject::New(bool value)
+{
+	return Local<Value>(new BooleanObject(Context::GetCurrentJSContext(), value));
+}
+
+/*static*/ BooleanObject* BooleanObject::Cast(Value* value)
+{
+	if (RTTI_IsKindOf(BooleanObject, value))
+	{
+		return RTTI_StaticCast(BooleanObject, value);
+	}
+
+	// TODO
+///	if (value)
+///	{
+///		JSContextRef js_ctx = Context::GetCurrentJSContext();
+///		JSValueRef js_value = value->m_js_value;
+///		if (JSValueIsBooleanObject(js_ctx, js_value))
+///		{
+///			JSObjectRef js_object = JSValueToObject(js_ctx, js_value, NULL);
+///			assert(js_object == js_value);
+///			return new BooleanObject(js_ctx, js_object);
+///		}
+///	}
+	return NULL;
+}
+
+/// v8::NumberObject
+
+RTTI_IMPLEMENT(v8::NumberObject, v8::Object);
+
+NumberObject::NumberObject(JSContextRef js_ctx, double value)
+{
+	// TODO
+	Object::AttachJSContextAndJSObject(js_ctx, JSObjectMake(js_ctx, Object::GetJSClass(), this));
+	assert(JSObjectGetPrivate(m_js_object) == NULL);
+	assert(JSValueIsObject(js_ctx, m_js_value));
+///	assert(JSValueIsNumberObject(js_ctx, m_js_object));
+}
+
+NumberObject::NumberObject(JSContextRef js_ctx, JSObjectRef js_object)
+{
+	Object::AttachJSContextAndJSObject(js_ctx, js_object);
+	assert(JSObjectGetPrivate(m_js_object) == NULL);
+	assert(JSValueIsObject(js_ctx, m_js_value));
+///	assert(JSValueIsNumberObject(js_ctx, m_js_object));
+}
+
+/*static*/ Local<Value> NumberObject::New(double value)
+{
+	return Local<Value>(new NumberObject(Context::GetCurrentJSContext(), value));
+}
+
+/*static*/ NumberObject* NumberObject::Cast(Value* value)
+{
+	if (RTTI_IsKindOf(NumberObject, value))
+	{
+		return RTTI_StaticCast(NumberObject, value);
+	}
+
+	// TODO
+///	if (value)
+///	{
+///		JSContextRef js_ctx = Context::GetCurrentJSContext();
+///		JSValueRef js_value = value->m_js_value;
+///		if (JSValueIsNumberObject(js_ctx, js_value))
+///		{
+///			JSObjectRef js_object = JSValueToObject(js_ctx, js_value, NULL);
+///			assert(js_object == js_value);
+///			return new NumberObject(js_ctx, js_object);
+///		}
+///	}
+	return NULL;
+}
+
+/// v8::StringObject
+
+RTTI_IMPLEMENT(v8::StringObject, v8::Object);
+
+StringObject::StringObject(JSContextRef js_ctx, Handle<String> value)
+{
+	// TODO
+	Object::AttachJSContextAndJSObject(js_ctx, JSObjectMake(js_ctx, Object::GetJSClass(), this));
+	assert(JSObjectGetPrivate(m_js_object) == NULL);
+	assert(JSValueIsObject(js_ctx, m_js_value));
+///	assert(JSValueIsStringObject(js_ctx, m_js_object));
+}
+
+StringObject::StringObject(JSContextRef js_ctx, JSObjectRef js_object)
+{
+	Object::AttachJSContextAndJSObject(js_ctx, js_object);
+	assert(JSObjectGetPrivate(m_js_object) == NULL);
+	assert(JSValueIsObject(js_ctx, m_js_value));
+///	assert(JSValueIsStringObject(js_ctx, m_js_object));
+}
+
+/*static*/ Local<Value> StringObject::New(Handle<String> value)
+{
+	return Local<Value>(new StringObject(Context::GetCurrentJSContext(), value));
+}
+
+/*static*/ StringObject* StringObject::Cast(Value* value)
+{
+	if (RTTI_IsKindOf(StringObject, value))
+	{
+		return RTTI_StaticCast(StringObject, value);
+	}
+
+	// TODO
+///	if (value)
+///	{
+///		JSContextRef js_ctx = Context::GetCurrentJSContext();
+///		JSValueRef js_value = value->m_js_value;
+///		if (JSValueIsStringObject(js_ctx, js_value))
+///		{
+///			JSObjectRef js_object = JSValueToObject(js_ctx, js_value, NULL);
+///			assert(js_object == js_value);
+///			return new StringObject(js_ctx, js_object);
+///		}
+///	}
+	return NULL;
+}
+
 /// v8::External
 
 RTTI_IMPLEMENT(v8::External, v8::Value);
@@ -3679,8 +3857,8 @@ void Template::ApplyToObject(Handle<Object> object)
 			continue;
 		}
 
-        Value* value = RTTI_DynamicCast(Value, *data);
-        assert(value);
+		Value* value = RTTI_DynamicCast(Value, *data);
+		assert(value);
 		object->Set(name, Handle<Value>(value), attrib);
 	}
 }
@@ -4871,7 +5049,7 @@ HeapStatistics::HeapStatistics() :
 /*static*/ void V8::SetAllowCodeGenerationFromStringsCallback(AllowCodeGenerationFromStringsCallback that) { TODO(); }
 /*static*/ void V8::IgnoreOutOfMemoryException() { TODO(); }
 /*static*/ bool V8::IsDead() { TODO(); return false; }
-/*static*/ StartupData::CompressionAlgorithm V8::GetCompressedStartupDataAlgorithm() { TODO(); return StartupData::CompressionAlgorithm::kUncompressed; }
+/*static*/ StartupData::CompressionAlgorithm V8::GetCompressedStartupDataAlgorithm() { TODO(); return StartupData::kUncompressed; }
 /*static*/ int V8::GetCompressedStartupDataCount() { TODO(); return 0; }
 /*static*/ void V8::GetCompressedStartupData(StartupData* compressed_data) { TODO(); }
 /*static*/ void V8::SetDecompressedStartupData(StartupData* decompressed_data) { TODO(); }
