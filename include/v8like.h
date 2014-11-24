@@ -1728,6 +1728,7 @@ public:
 	static JSClassRef sm_js_class;
 	static JSContextGroupRef sm_initial_js_group;
 	static JSGlobalContextRef sm_initial_js_global_ctx;
+	static std::map<JSContextRef, JSObjectRef> sm_js_global_object_map;
 	static Persistent<Context> sm_initial_context;
 private:
 	static Persistent<Context> sm_entered_context;
@@ -1738,12 +1739,15 @@ public:
 	static JSClassRef GetJSClass();
 	static JSGlobalContextRef GetCurrentJSGlobalContext();
 	static JSContextRef GetCurrentJSContext();
+	static JSObjectRef GetJSGlobalObject(JSContextRef js_ctx, JSObjectRef js_object = NULL);
 public:
 	static Local<Context> GetEntered();
 	static Local<Context> GetCurrent();
 	static Local<Context> GetCalling();
 	static Persistent<Context> New(ExtensionConfiguration* extensions = NULL, Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(), Handle<Value> global_value = Handle<Value>());
 private:
+	static void _JS_Initialize(JSContextRef js_ctx, JSObjectRef js_object);
+	static void _JS_Finalize(JSObjectRef js_object);
 	static bool _JS_HasProperty(JSContextRef js_ctx, JSObjectRef js_object, JSStringRef js_name);
 	static JSValueRef _JS_GetProperty(JSContextRef js_ctx, JSObjectRef js_object, JSStringRef js_name, JSValueRef *js_exception);
 	static bool _JS_SetProperty(JSContextRef js_ctx, JSObjectRef js_object, JSStringRef js_name, JSValueRef js_value, JSValueRef *js_exception);

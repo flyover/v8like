@@ -1559,7 +1559,7 @@ Object::Object(JSContextRef js_ctx) :
 
 	// m_js_object.__proto__ = new Object();
 	JSStringRef js_name = JSStringCreateWithUTF8CString("Object");
-	JSObjectRef js_ctor = JSValueToObject(js_ctx, JSObjectGetProperty(js_ctx, JSContextGetGlobalObject(js_ctx), js_name, NULL), NULL);
+	JSObjectRef js_ctor = JSValueToObject(js_ctx, JSObjectGetProperty(js_ctx, Context::GetJSGlobalObject(js_ctx, JSContextGetGlobalObject(js_ctx)), js_name, NULL), NULL);
 	JSObjectRef js_prototype = JSObjectCallAsConstructor(js_ctx, js_ctor, 0, NULL, NULL);
 	JSObjectSetPrototype(js_ctx, m_js_object, js_prototype);
 	JSStringRelease(js_name); js_name = NULL;
@@ -1991,7 +1991,7 @@ PropertyAttribute Object::GetPropertyAttributes(Handle<Value> key)
 {
 	JSValueRef js_exception = NULL;
 	JSContextRef js_ctx = Context::GetCurrentJSContext();
-	JSObjectRef js_ctor = JSValueToObject(js_ctx, JSObjectGetProperty(js_ctx, JSContextGetGlobalObject(js_ctx), internal::JSStringWrap("Object"), &js_exception), &js_exception);
+	JSObjectRef js_ctor = JSValueToObject(js_ctx, JSObjectGetProperty(js_ctx, Context::GetJSGlobalObject(js_ctx, JSContextGetGlobalObject(js_ctx)), internal::JSStringWrap("Object"), &js_exception), &js_exception);
 	JSObjectRef js_func = JSValueToObject(js_ctx, JSObjectGetProperty(js_ctx, js_ctor, internal::JSStringWrap("getOwnPropertyDescriptor"), &js_exception), &js_exception);
 	JSObjectRef js_that = NULL;
 	const JSValueRef js_argv[] = { m_js_object, key->m_js_value };
@@ -2989,7 +2989,7 @@ Function::Function(JSContextRef js_ctx)
 
 	// m_js_object.__proto__ = new Function();
 	JSStringRef js_name = JSStringCreateWithUTF8CString("Function");
-	JSObjectRef js_ctor = JSValueToObject(js_ctx, JSObjectGetProperty(js_ctx, JSContextGetGlobalObject(js_ctx), js_name, NULL), NULL);
+	JSObjectRef js_ctor = JSValueToObject(js_ctx, JSObjectGetProperty(js_ctx, Context::GetJSGlobalObject(js_ctx, JSContextGetGlobalObject(js_ctx)), js_name, NULL), NULL);
 	JSObjectRef js_prototype = JSObjectCallAsConstructor(js_ctx, js_ctor, 0, NULL, NULL);
 	JSObjectSetPrototype(js_ctx, m_js_object, js_prototype);
 	JSStringRelease(js_name); js_name = NULL;
@@ -4513,7 +4513,7 @@ Context::Context()
 	m_js_ctx_stack.push_back(m_js_global_ctx);
 
 	// initialize global object
-	JSObjectRef js_global_object = JSContextGetGlobalObject(m_js_global_ctx);
+	JSObjectRef js_global_object = Context::GetJSGlobalObject(m_js_global_ctx);
 	m_global_object = Handle<Object>(new Object(m_js_global_ctx, js_global_object));
 	assert(JSValueIsObjectOfClass(m_js_global_ctx, js_global_object, Context::GetJSClass()));
 	//printf("global %p\n", js_global_object);
@@ -4553,6 +4553,7 @@ void Context::Exit()
 /*static*/ JSClassRef Context::sm_js_class = NULL;
 /*static*/ JSContextGroupRef Context::sm_initial_js_group = NULL;
 /*static*/ JSGlobalContextRef Context::sm_initial_js_global_ctx = NULL;
+/*static*/ std::map<JSContextRef, JSObjectRef> Context::sm_js_global_object_map;
 /*static*/ Persistent<Context> Context::sm_initial_context;
 /*static*/ Persistent<Context> Context::sm_entered_context;
 /*static*/ Persistent<Context> Context::sm_current_context;
@@ -4590,8 +4591,8 @@ void Context::Exit()
 		js_def.parentClass = Object::GetJSClass();
 		//js_def.staticValues = NULL;
 		//js_def.staticFunctions = NULL;
-		//js_def.initialize = Context::_JS_Initialize;
-		//js_def.finalize = Context::_JS_Finalize;
+		js_def.initialize = Context::_JS_Initialize;
+		js_def.finalize = Context::_JS_Finalize;
 		js_def.hasProperty = Context::_JS_HasProperty;
 		js_def.getProperty = Context::_JS_GetProperty;
 		js_def.setProperty = Context::_JS_SetProperty;
@@ -4660,6 +4661,20 @@ void Context::Exit()
 
 		return sm_initial_js_global_ctx;
 	}
+}
+
+/*static*/ JSObjectRef Context::GetJSGlobalObject(JSContextRef js_ctx, JSObjectRef js_object /*= NULL*/)
+{
+	JSObjectRef js_global_object = Context::sm_js_global_object_map[js_ctx];
+	if (js_global_object == NULL)
+	{
+		js_global_object = js_object;
+	}
+	if (js_global_object == NULL)
+	{
+		js_global_object = JSContextGetGlobalObject(js_ctx);
+	}
+	return js_global_object;
 }
 
 static bool sg_expose_gc = true;
@@ -4812,6 +4827,33 @@ static JSValueRef sg_node_buffer_constructor = NULL;
 
 #endif
 
+/*static*/ void Context::_JS_Initialize(JSContextRef js_ctx, JSObjectRef js_object)
+{
+	assert(js_ctx != NULL);
+	assert(js_object != NULL);
+	assert(sm_js_global_object_map[js_ctx] == NULL);
+	sm_js_global_object_map[js_ctx] = js_object;
+}
+
+/*static*/ void Context::_JS_Finalize(JSObjectRef js_object)
+{
+	JSContextRef js_ctx = NULL;
+
+	for (std::map<JSContextRef, JSObjectRef>::iterator it = sm_js_global_object_map.begin(); it != sm_js_global_object_map.end(); ++it)
+	{
+		if (it->second == js_object)
+		{
+			assert(js_ctx == NULL);
+			js_ctx = it->first;
+		}
+	}
+
+	assert(js_ctx != NULL);
+	assert(js_object != NULL);
+	assert(sm_js_global_object_map[js_ctx] != NULL);
+	sm_js_global_object_map.erase(js_ctx);
+}
+
 /**
  * If this function returns false, the hasProperty request
  * forwards to object's statically declared properties, then its
@@ -4820,7 +4862,7 @@ static JSValueRef sg_node_buffer_constructor = NULL;
  */
 /*static*/ bool Context::_JS_HasProperty(JSContextRef js_ctx, JSObjectRef js_object, JSStringRef js_name)
 {
-	assert(JSValueIsStrictEqual(js_ctx, JSContextGetGlobalObject(js_ctx), js_object));
+	assert(JSValueIsStrictEqual(js_ctx, Context::GetJSGlobalObject(js_ctx, js_object), js_object));
 
 	#if 1 // V8LIKE_NODE_BUFFER_WRAP_CTOR
 	if (JSStringIsEqualToUTF8CString(js_name, "Buffer"))
@@ -4840,7 +4882,7 @@ static JSValueRef sg_node_buffer_constructor = NULL;
  */
 /*static*/ JSValueRef Context::_JS_GetProperty(JSContextRef js_ctx, JSObjectRef js_object, JSStringRef js_name, JSValueRef* js_exception)
 {
-	assert(JSValueIsStrictEqual(js_ctx, JSContextGetGlobalObject(js_ctx), js_object));
+	assert(JSValueIsStrictEqual(js_ctx, Context::GetJSGlobalObject(js_ctx, js_object), js_object));
 
 	#if 1 // V8LIKE_NODE_BUFFER_WRAP_CTOR
 	if (JSStringIsEqualToUTF8CString(js_name, "Buffer"))
@@ -4862,7 +4904,7 @@ static JSValueRef sg_node_buffer_constructor = NULL;
  */
 /*static*/ bool Context::_JS_SetProperty(JSContextRef js_ctx, JSObjectRef js_object, JSStringRef js_name, JSValueRef js_value, JSValueRef* js_exception)
 {
-	assert(JSValueIsStrictEqual(js_ctx, JSContextGetGlobalObject(js_ctx), js_object));
+	assert(JSValueIsStrictEqual(js_ctx, Context::GetJSGlobalObject(js_ctx, js_object), js_object));
 
 	#if 1
 	// for tracing JS before console.log is ready
@@ -4899,7 +4941,7 @@ static JSValueRef sg_node_buffer_constructor = NULL;
 
 bool Context::_JS_DeleteProperty(JSContextRef js_ctx, JSObjectRef js_object, JSStringRef js_name, JSValueRef* js_exception)
 {
-	assert(JSValueIsStrictEqual(js_ctx, JSContextGetGlobalObject(js_ctx), js_object));
+	assert(JSValueIsStrictEqual(js_ctx, Context::GetJSGlobalObject(js_ctx, js_object), js_object));
 
 	#if 1 // V8LIKE_NODE_BUFFER_WRAP_CTOR
 	if (JSStringIsEqualToUTF8CString(js_name, "Buffer"))
@@ -4917,7 +4959,7 @@ bool Context::_JS_DeleteProperty(JSContextRef js_ctx, JSObjectRef js_object, JSS
 
 void Context::_JS_GetPropertyNames(JSContextRef js_ctx, JSObjectRef js_object, JSPropertyNameAccumulatorRef js_name_accumulator)
 {
-	assert(JSValueIsStrictEqual(js_ctx, JSContextGetGlobalObject(js_ctx), js_object));
+	assert(JSValueIsStrictEqual(js_ctx, Context::GetJSGlobalObject(js_ctx, js_object), js_object));
 
 	#if 1 // V8LIKE_NODE_BUFFER_WRAP_CTOR
 	if (sg_node_buffer_constructor != NULL)
