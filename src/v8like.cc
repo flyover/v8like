@@ -322,6 +322,10 @@ Handle<Object> internal::ImportObject(JSContextRef js_ctx, JSObjectRef js_object
 
 /// v8::Isolate
 
+void Isolate::SetAbortOnUncaughtException(abort_on_uncaught_exception_t callback)
+{
+}
+
 void Isolate::Enter()
 {
 	m_previous_isolate = sm_current_isolate;
