@@ -92,6 +92,8 @@ public:
 	static void StartProfiling(Handle<String> title);
 	static const CpuProfile* StopProfiling(Handle<String> title, Handle<Value> security_token = Handle<Value>());
 	static void DeleteAllProfiles();
+
+	void SetIdle(bool v);
 };
 
 class HeapGraphNode;
@@ -168,6 +170,7 @@ class RetainedObjectInfo;
 class V8EXPORT HeapProfiler
 {
 public:
+	HeapProfiler(){}
 	typedef RetainedObjectInfo* (*WrapperInfoCallback)(uint16_t class_id, Handle<Value> wrapper);
 	static int GetSnapshotsCount();
 	static const HeapSnapshot* GetSnapshot(int index);
@@ -183,6 +186,9 @@ public:
 	static const uint16_t kPersistentHandleNoClassId = 0;
 	static int GetPersistentHandleCount();
 	static size_t GetMemorySizeUsedByProfiler();
+	void SetWrapperClassInfoProvider(
+		uint16_t class_id,
+		WrapperInfoCallback callback);
 };
 
 class V8EXPORT RetainedObjectInfo
