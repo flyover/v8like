@@ -83,6 +83,7 @@ public:
 	class Message
 	{
 	public:
+		virtual Isolate* GetIsolate() const = 0;
 		virtual bool IsEvent() const = 0;
 		virtual bool IsResponse() const = 0;
 		virtual DebugEvent GetEvent() const = 0;
@@ -108,7 +109,8 @@ public:
 
 	typedef void (*EventCallback)(DebugEvent event, Handle<Object> exec_state, Handle<Object> event_data, Handle<Value> data);
 	typedef void (*EventCallback2)(const EventDetails& event_details);
-	typedef void (*MessageHandler)(const uint16_t* message, int length, ClientData* client_data);
+	typedef void(*MessageHandler)(const Message& message);
+//	typedef void (*MessageHandler)(const uint16_t* message, int length, ClientData* client_data);
 	typedef void (*MessageHandler2)(const Message& message);
 	typedef void (*HostDispatchHandler)();
 	typedef void (*DebugMessageDispatchHandler)();
@@ -121,6 +123,10 @@ public:
 	static void SetMessageHandler(MessageHandler handler, bool message_handler_thread = false);
 	static void SetMessageHandler2(MessageHandler2 handler);
 	static void SendCommand(const uint16_t* command, int length, ClientData* client_data = NULL, Isolate* isolate = NULL);
+	static void SendCommand(Isolate* isolate, const uint16_t* command, int length, ClientData* client_data = NULL, Isolate* isolate1 = NULL)
+	{
+		SendCommand(command, length, client_data, isolate);
+	}
 	static void SetHostDispatchHandler(HostDispatchHandler handler, int period = 100);
 	static void SetDebugMessageDispatchHandler(DebugMessageDispatchHandler handler, bool provide_locker = false);
 	static Local<Value> Call(v8::Handle<v8::Function> fun, Handle<Value> data = Handle<Value>());
